@@ -111,7 +111,7 @@
     /* 移动端触摸控制 */
     #mobileControls {
       position: absolute; bottom: 0; left: 0; right: 0;
-      padding: 10px; background: rgba(15,21,48,0.9);
+      padding: 10px; background: rgba(15,21,48,0.6);
       border-radius: 0 0 12px 12px; display: none;
     }
     #touchPad {
@@ -119,9 +119,9 @@
       padding: 10px;
     }
     #touchLeft, #touchRight {
-      width: 80px; height: 80px;
-      background: rgba(255,255,255,0.1);
-      border: 2px solid #4466ff; border-radius: 50%;
+      width: 70px; height: 70px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(68,102,255,0.7); border-radius: 50%;
       display: flex; justify-content: center; align-items: center;
       font-size: 24px; color: #fff;
       user-select: none; touch-action: manipulation;
@@ -129,17 +129,17 @@
     #touchLeft:active, #touchRight:active { background: rgba(68,102,255,0.5); }
     #virtualKeyboard {
       display: flex; flex-wrap: wrap; justify-content: center;
-      gap: 5px; margin-top: 10px;
+      gap: 4px; margin-top: 8px;
     }
     .keyBtn {
-      width: 40px; height: 40px;
-      background: rgba(255,255,255,0.1);
-      border: 2px solid #4466ff; border-radius: 8px;
-      color: #fff; font-size: 18px; font-weight: bold;
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.12);
+      border: 2px solid rgba(68,102,255,0.6); border-radius: 8px;
+      color: #fff; font-size: 16px; font-weight: bold;
       touch-action: manipulation;
     }
     .keyBtn:active { background: rgba(68,102,255,0.5); }
-    .keyNum { background: rgba(255,204,68,0.2); border-color: #ffcc44; }
+    .keyNum { background: rgba(255,204,68,0.15); border-color: rgba(255,204,68,0.7); }
     
     @media (max-width: 768px) {
       #mobileControls { display: block; }
@@ -236,6 +236,17 @@
           window.speechSynthesis.onvoiceschanged = () => {
             window.speechSynthesis.getVoices();
           };
+        }
+      },
+      
+      speak(text) {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'en-US';
+          utterance.rate = 0.9;
+          utterance.pitch = 1;
+          window.speechSynthesis.speak(utterance);
         }
       },
       
@@ -504,9 +515,9 @@
         
         const enemy = {
           x: canvas.width / 2,
-          y: type === 'choice' ? -60 : -45,
-          width: type === 'choice' ? 400 : 280,
-          height: type === 'choice' ? 160 : 90,
+          y: type === 'choice' ? -60 : -50,
+          width: type === 'choice' ? 400 : 350,
+          height: type === 'choice' ? 160 : 110,
           vy: 0.35,
           opacity: 0,
           question: q.question,
@@ -522,10 +533,10 @@
         
         if (type === 'fill') {
           enemy.hitBoxes = emptyIndices.map((idx, i) => ({
-            x: canvas.width / 2 - enemy.width / 2 + 40 + idx * 28,
-            y: enemy.height / 2 - 10,
-            width: 20,
-            height: 30,
+            x: canvas.width / 2 - enemy.width / 2 + 30 + idx * 35,
+            y: enemy.height / 2 - 12,
+            width: 28,
+            height: 35,
             letterIndex: idx,
             filled: false
           }));
@@ -660,6 +671,7 @@
       },
       
       destroyEnemy(enemy) {
+        this.speak(enemy.answer);
         for (let i = 0; i < 20; i++) {
           this.particles.push({
             x: enemy.x + Math.random() * enemy.width,
@@ -731,12 +743,12 @@
           ctx.stroke();
           
           ctx.fillStyle = '#fff';
-          ctx.font = 'bold 16px Microsoft YaHei';
+          ctx.font = 'bold 20px Microsoft YaHei';
           ctx.textAlign = 'center';
           ctx.fillText(enemy.displayText, enemy.x, enemy.y + enemy.height / 2);
           
           if (enemy.type === 'choice' && enemy.options.length > 0) {
-            ctx.font = '14px Microsoft YaHei';
+            ctx.font = '16px Microsoft YaHei';
             const optionsY = enemy.y + enemy.height / 2 + 30;
             enemy.options.forEach((opt, idx) => {
               const color = (idx + 1).toString() === enemy.answer ? '#44ff88' : '#fff';
