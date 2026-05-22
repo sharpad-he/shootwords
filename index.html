@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>飞机打字母 - 英语学习游戏</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(180deg, #0a0e27 0%, #1a1f3a 100%);
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    #gameContainer {
+      position: relative;
+      width: 100vw;
+      max-width: 800px;
+      height: 100vh;
+      max-height: 700px;
+      border-radius: 12px;
+      box-shadow: 0 0 40px rgba(0, 150, 255, 0.3);
+      background: #0f1530;
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+    }
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    .hudItem {
+      color: #fff;
+      font-size: 16px;
+      text-shadow: 0 0 10px rgba(0,0,0,0.5);
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+    }
+    .hpBar { display: flex; gap: 3px; }
+    .hpDot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #ff4444; box-shadow: 0 0 6px #ff4444;
+    }
+    .hpDot.empty { background: #444; box-shadow: none; }
+    .score { color: #ffcc44; font-weight: bold; }
+    .level { color: #88ff88; }
+    
+    .menu {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15,21,48,0.95);
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      border-radius: 12px; z-index: 10;
+    }
+    .menu.hidden { display: none; }
+    .menuTitle {
+      font-size: 32px; font-weight: bold;
+      background: linear-gradient(180deg, #44ffcc, #4488ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 20px;
+      text-shadow: 0 0 30px rgba(68,255,204,0.5);
+    }
+    .menuSubtitle { color: #aaa; font-size: 14px; margin-bottom: 30px; }
+    .btn {
+      background: linear-gradient(180deg, #4466ff, #3344cc);
+      color: #fff; border: none; padding: 12px 35px;
+      font-size: 18px; border-radius: 25px; cursor: pointer;
+      margin: 8px; transition: all 0.2s;
+      box-shadow: 0 4px 15px rgba(68,102,255,0.4);
+      min-width: 150px;
+    }
+    .btn:hover, .btn:active {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(68,102,255,0.6);
+    }
+    .levelGrid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; margin: 15px 0; padding: 0 10px;
+    }
+    .levelBtn {
+      background: rgba(255,255,255,0.08); color: #fff;
+      border: 2px solid #4466ff; padding: 10px 15px;
+      font-size: 14px; border-radius: 10px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .levelBtn:hover, .levelBtn:active { background: #4466ff; }
+    .gameOverScore { font-size: 28px; color: #ffcc44; margin: 15px 0; }
+    .instructions { color: #888; font-size: 12px; margin-top: 20px; text-align: center; line-height: 1.8; }
+    .instructions strong { color: #aaa; }
+    #controlsInfo {
+      position: absolute; bottom: 10px; left: 0; right: 0;
+      text-align: center; color: rgba(255,255,255,0.5);
+      font-size: 12px; pointer-events: none;
+    }
+    
+    /* 移动端触摸控制 */
+    #mobileControls {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 10px; background: rgba(15,21,48,0.9);
+      border-radius: 0 0 12px 12px; display: none;
+    }
+    #touchPad {
+      display: flex; justify-content: space-between;
+      padding: 10px;
+    }
+    #touchLeft, #touchRight {
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid #4466ff; border-radius: 50%;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 24px; color: #fff;
+      user-select: none; touch-action: manipulation;
+    }
+    #touchLeft:active, #touchRight:active { background: rgba(68,102,255,0.5); }
+    #virtualKeyboard {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 5px; margin-top: 10px;
+    }
+    .keyBtn {
+      width: 40px; height: 40px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid #4466ff; border-radius: 8px;
+      color: #fff; font-size: 18px; font-weight: bold;
+      touch-action: manipulation;
+    }
+    .keyBtn:active { background: rgba(68,102,255,0.5); }
+    .keyNum { background: rgba(255,204,68,0.2); border-color: #ffcc44; }
+    
+    @media (max-width: 768px) {
+      #mobileControls { display: block; }
+      #controlsInfo { display: none; }
+      .menuTitle { font-size: 28px; }
+      .btn { padding: 10px 25px; font-size: 16px; min-width: 120px; }
+      .levelGrid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .levelBtn { padding: 8px 10px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="700"></canvas>
+    
+    <div id="hud">
+      <div class="hudItem hpBar" id="hpBar"></div>
+      <div class="hudItem score" id="score">得分: 0</div>
+      <div class="hudItem level" id="level">第1大关</div>
+    </div>
+
+    <div class="menu" id="mainMenu">
+      <div class="menuTitle">飞机打字母</div>
+      <div class="menuSubtitle">新概念英语第一册 - 趣味学习</div>
+      <button class="btn" id="startBtn">开始游戏</button>
+      <button class="btn" id="levelSelectBtn">选择关卡</button>
+    </div>
+
+    <div class="menu hidden" id="levelSelectMenu">
+      <div class="menuTitle">选择关卡</div>
+      <div class="levelGrid" id="levelGrid"></div>
+      <button class="btn" id="backToMainBtn">返回</button>
+    </div>
+
+    <div class="menu hidden" id="pauseMenu">
+      <div class="menuTitle">游戏暂停</div>
+      <button class="btn" id="resumeBtn">继续游戏</button>
+      <button class="btn" id="restartBtn">重新开始</button>
+      <button class="btn" id="pauseBackBtn">返回菜单</button>
+    </div>
+
+    <div class="menu hidden" id="gameOverMenu">
+      <div class="menuTitle">游戏结束</div>
+      <div class="gameOverScore" id="finalScore">得分: 0</div>
+      <button class="btn" id="retryBtn">再试一次</button>
+      <button class="btn" id="menuBtn">返回菜单</button>
+    </div>
+
+    <div class="menu hidden" id="levelCompleteMenu">
+      <div class="menuTitle">🎉 关卡完成！</div>
+      <div class="gameOverScore" id="levelScore">得分: 0</div>
+      <button class="btn" id="nextLevelBtn">下一关</button>
+      <button class="btn" id="levelMenuBtn">返回菜单</button>
+    </div>
+
+    <!-- 移动端触摸控制 -->
+    <div id="mobileControls">
+      <div id="touchPad">
+        <div id="touchLeft">◀</div>
+        <div id="touchRight">▶</div>
+      </div>
+      <div id="virtualKeyboard"></div>
+    </div>
+
+    <div id="controlsInfo">
+      左右移动飞机对准填空位 | 字母键填空 | 数字键1-4答题 | ESC暂停
+    </div>
+  </div>
+
+  <script src="js/questions.js"></script>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function getMajorLevelData(major) {
+      const key = 'major' + major;
+      if (NEW_CONCEPT_QUESTIONS && NEW_CONCEPT_QUESTIONS[key]) {
+        return NEW_CONCEPT_QUESTIONS[key];
+      }
+      console.error('题库数据不存在: major' + major);
+      return null;
+    }
+
+    const Game = {
+      state: 'menu', score: 0, hp: 10, maxHp: 10, combo: 0, maxCombo: 0,
+      currentMajor: 1, currentSub: 'sub1', currentQuestionIndex: 0, questions: [],
+      player: { x: 400, y: 600, width: 60, height: 50, speed: 8 },
+      bullets: [], enemies: [], particles: [], powerUps: [],
+      keys: {}, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 3000,
+      
+      initVoice() {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.getVoices();
+          window.speechSynthesis.onvoiceschanged = () => {
+            window.speechSynthesis.getVoices();
+          };
+        }
+      },
+      
+      init() {
+        this.initVoice();
+        this.setupEvents();
+        this.gameLoop();
+        this.updateLevelGrid();
+        this.createVirtualKeyboard();
+      },
+      
+      setupEvents() {
+        document.getElementById('startBtn').onclick = () => this.startGame();
+        document.getElementById('levelSelectBtn').onclick = () => this.showLevelSelect();
+        document.getElementById('backToMainBtn').onclick = () => this.showMainMenu();
+        document.getElementById('resumeBtn').onclick = () => this.resumeGame();
+        document.getElementById('restartBtn').onclick = () => this.restartLevel();
+        document.getElementById('pauseBackBtn').onclick = () => this.showMainMenu();
+        document.getElementById('retryBtn').onclick = () => this.restartLevel();
+        document.getElementById('menuBtn').onclick = () => this.showMainMenu();
+        document.getElementById('nextLevelBtn').onclick = () => this.nextLevel();
+        document.getElementById('levelMenuBtn').onclick = () => this.showMainMenu();
+        
+        // 触摸控制 - 移动
+        document.getElementById('touchLeft').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.keys['ArrowLeft'] = true;
+        });
+        document.getElementById('touchLeft').addEventListener('touchend', (e) => {
+          e.preventDefault();
+          this.keys['ArrowLeft'] = false;
+        });
+        document.getElementById('touchRight').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.keys['ArrowRight'] = true;
+        });
+        document.getElementById('touchRight').addEventListener('touchend', (e) => {
+          e.preventDefault();
+          this.keys['ArrowRight'] = false;
+        });
+        
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            this.keys[e.key] = true;
+          } else {
+            this.keys[e.key.toLowerCase()] = true;
+          }
+          if (this.state === 'playing') {
+            this.handleInput(e.key.toLowerCase(), e.key);
+          }
+          if (e.key === 'Escape') {
+            if (this.state === 'playing') this.pauseGame();
+            else if (this.state === 'paused') this.resumeGame();
+          }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            this.keys[e.key] = false;
+          } else {
+            this.keys[e.key.toLowerCase()] = false;
+          }
+        });
+      },
+      
+      createVirtualKeyboard() {
+        const keyboard = document.getElementById('virtualKeyboard');
+        const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+        const nums = ['1', '2', '3', '4'];
+        
+        nums.forEach(num => {
+          const btn = document.createElement('button');
+          btn.className = 'keyBtn keyNum';
+          btn.textContent = num;
+          btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.state === 'playing') this.fireBullet(num);
+          });
+          keyboard.appendChild(btn);
+        });
+        
+        letters.forEach(letter => {
+          const btn = document.createElement('button');
+          btn.className = 'keyBtn';
+          btn.textContent = letter;
+          btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.state === 'playing') this.fireBullet(letter);
+          });
+          keyboard.appendChild(btn);
+        });
+      },
+      
+      updateLevelGrid() {
+        const grid = document.getElementById('levelGrid');
+        grid.innerHTML = '';
+        for (let i = 1; i <= 12; i++) {
+          const btn = document.createElement('button');
+          btn.className = 'levelBtn';
+          btn.textContent = `第${i}大关`;
+          btn.onclick = () => {
+            this.currentMajor = i;
+            this.currentSub = 'sub1';
+            this.startGame();
+          };
+          grid.appendChild(btn);
+        }
+      },
+      
+      startGame() {
+        this.state = 'playing';
+        this.hideAllMenus();
+        this.score = 0;
+        this.hp = this.maxHp;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.currentQuestionIndex = 0;
+        this.bullets = [];
+        this.enemies = [];
+        this.particles = [];
+        this.powerUps = [];
+        this.enemySpawnTimer = 0;
+        this.loadQuestions();
+        this.updateHUD();
+      },
+      
+      loadQuestions() {
+        const data = getMajorLevelData(this.currentMajor);
+        if (data && data[this.currentSub] && data[this.currentSub].questions) {
+          this.questions = [...data[this.currentSub].questions];
+        } else {
+          console.error('题库加载失败:', this.currentMajor, this.currentSub);
+          this.questions = [];
+        }
+        if (this.questions.length === 0) {
+          console.error('题目列表为空!');
+        }
+        this.shuffleArray(this.questions);
+      },
+      
+      shuffleArray(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      },
+      
+      pauseGame() {
+        this.state = 'paused';
+        document.getElementById('pauseMenu').classList.remove('hidden');
+      },
+      
+      resumeGame() {
+        this.state = 'playing';
+        this.hideAllMenus();
+      },
+      
+      restartLevel() {
+        this.startGame();
+      },
+      
+      nextLevel() {
+        const subLevels = ['sub1', 'sub2', 'sub3', 'combo'];
+        const idx = subLevels.indexOf(this.currentSub);
+        if (idx < subLevels.length - 1) {
+          this.currentSub = subLevels[idx + 1];
+        } else {
+          this.currentMajor++;
+          this.currentSub = 'sub1';
+        }
+        if (this.currentMajor > 12) this.currentMajor = 1;
+        this.startGame();
+      },
+      
+      gameOver() {
+        this.state = 'gameOver';
+        document.getElementById('finalScore').textContent = `得分: ${this.score}`;
+        document.getElementById('gameOverMenu').classList.remove('hidden');
+      },
+      
+      levelComplete() {
+        this.state = 'levelComplete';
+        document.getElementById('levelScore').textContent = `得分: ${this.score}`;
+        document.getElementById('levelCompleteMenu').classList.remove('hidden');
+      },
+      
+      showMainMenu() {
+        this.state = 'menu';
+        this.hideAllMenus();
+        document.getElementById('mainMenu').classList.remove('hidden');
+      },
+      
+      showLevelSelect() {
+        this.hideAllMenus();
+        document.getElementById('levelSelectMenu').classList.remove('hidden');
+      },
+      
+      hideAllMenus() {
+        document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
+      },
+      
+      handleInput(key, originalKey) {
+        if (key.length === 1 && ((key >= 'a' && key <= 'z') || (key >= '1' && key <= '4'))) {
+          this.fireBullet(key);
+        }
+      },
+      
+      fireBullet(key) {
+        const isNumber = key >= '1' && key <= '4';
+        this.bullets.push({
+          x: this.player.x,
+          y: this.player.y - 30,
+          vx: 0,
+          vy: -14,
+          color: isNumber ? '#ffcc44' : '#44ff88',
+          key: key,
+          trail: [],
+          success: false,
+          lifetime: 0,
+          size: isNumber ? 12 : 8
+        });
+      },
+      
+      spawnEnemy() {
+        if (this.enemies.length > 0) return;
+        if (this.questions.length === 0) {
+          console.error('没有可用题目,游戏结束');
+          this.gameOver();
+          return;
+        }
+        if (this.currentQuestionIndex >= this.questions.length) {
+          if (this.enemies.length === 0) {
+            this.levelComplete();
+          }
+          return;
+        }
+        
+        const q = this.questions[this.currentQuestionIndex];
+        this.currentQuestionIndex++;
+        
+        const type = (q.type === 'grammar_choice' || q.type === 'translate_en2cn') ? 'choice' : 'fill';
+        
+        let displayText = '';
+        let emptyIndices = [];
+        let filledLetters = [];
+        
+        if (type === 'fill') {
+          const answer = q.answer.replace(/\s/g, '');
+          const hideCount = Math.min(Math.max(1, Math.floor(answer.length / 3)), 3);
+          const hideIndices = new Set();
+          while (hideIndices.size < hideCount) {
+            hideIndices.add(Math.floor(Math.random() * answer.length));
+          }
+          for (let i = 0; i < answer.length; i++) {
+            if (hideIndices.has(i)) {
+              displayText += '_ ';
+              emptyIndices.push(i);
+              filledLetters.push(null);
+            } else {
+              displayText += answer[i] + ' ';
+            }
+          }
+        } else {
+          displayText = q.question;
+        }
+        
+        const enemy = {
+          x: canvas.width / 2,
+          y: type === 'choice' ? -60 : -45,
+          width: type === 'choice' ? 400 : 280,
+          height: type === 'choice' ? 160 : 90,
+          vy: 0.35,
+          opacity: 0,
+          question: q.question,
+          answer: q.answer,
+          displayText: displayText,
+          type: type,
+          emptyIndices: emptyIndices,
+          filledLetters: filledLetters,
+          options: q.options || [],
+          hitBoxes: [],
+          correctKey: null
+        };
+        
+        if (type === 'fill') {
+          enemy.hitBoxes = emptyIndices.map((idx, i) => ({
+            x: canvas.width / 2 - enemy.width / 2 + 40 + idx * 28,
+            y: enemy.height / 2 - 10,
+            width: 20,
+            height: 30,
+            letterIndex: idx,
+            filled: false
+          }));
+          enemy.correctKey = q.answer[emptyIndices[0]]?.toLowerCase() || '';
+        }
+        
+        this.enemies.push(enemy);
+      },
+      
+      update(dt) {
+        if (this.state !== 'playing') return;
+        
+        if (this.keys['ArrowLeft']) this.player.x -= this.player.speed;
+        if (this.keys['ArrowRight']) this.player.x += this.player.speed;
+        this.player.x = Math.max(40, Math.min(760, this.player.x));
+        
+        this.enemySpawnTimer += dt;
+        if (this.enemySpawnTimer >= this.enemySpawnInterval) {
+          this.enemySpawnTimer = 0;
+          this.spawnEnemy();
+        }
+        
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+          const e = this.enemies[i];
+          e.y += e.vy;
+          if (e.opacity < 1) e.opacity = Math.min(1, e.opacity + 0.03);
+          
+          if (e.y > canvas.height - 50) {
+            this.enemies.splice(i, 1);
+            this.hp--;
+            this.combo = 0;
+            this.updateHUD();
+            if (this.hp <= 0) this.gameOver();
+          }
+        }
+        
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+          const b = this.bullets[i];
+          if (!b.success) {
+            b.trail.push({ x: b.x, y: b.y });
+            if (b.trail.length > 8) b.trail.shift();
+          }
+          
+          if (b.success) {
+            b.vy = -3;
+            b.lifetime--;
+            b.size += 0.5;
+            b.color = '#44ff88';
+            if (b.lifetime <= 0) this.bullets.splice(i, 1);
+          } else {
+            b.x += b.vx;
+            b.y += b.vy;
+            if (this.checkBulletHitInUpdate(b)) {
+              this.bullets.splice(i, 1);
+              continue;
+            }
+            if (b.y < -50) this.bullets.splice(i, 1);
+          }
+        }
+        
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.lifetime--;
+          p.opacity = Math.max(0, p.lifetime / 30);
+          if (p.lifetime <= 0) this.particles.splice(i, 1);
+        }
+        
+        for (let i = this.powerUps.length - 1; i >= 0; i--) {
+          const p = this.powerUps[i];
+          p.y += p.vy;
+          if (p.y > canvas.height) this.powerUps.splice(i, 1);
+        }
+      },
+      
+      checkBulletHitInUpdate(bullet) {
+        for (const enemy of this.enemies) {
+          if (bullet.y < enemy.y + enemy.height && bullet.y > enemy.y) {
+            if (enemy.type === 'fill') {
+              for (const box of enemy.hitBoxes) {
+                const boxScreenY = enemy.y + box.y;
+                const boxScreenX = box.x;
+                if (Math.abs(bullet.x - boxScreenX) < box.width &&
+                    Math.abs(bullet.y - boxScreenY) < box.height && !box.filled) {
+                  if (bullet.key.toLowerCase() === enemy.answer[box.letterIndex].toLowerCase()) {
+                    box.filled = true;
+                    enemy.filledLetters[enemy.emptyIndices.indexOf(box.letterIndex)] = bullet.key;
+                    this.createHitParticles(bullet.x, bullet.y, true);
+                    this.score += 10 * (this.combo + 1);
+                    this.combo++;
+                    this.maxCombo = Math.max(this.maxCombo, this.combo);
+                    
+                    const allFilled = enemy.hitBoxes.every(b => b.filled);
+                    if (allFilled) {
+                      this.destroyEnemy(enemy);
+                    }
+                    return true;
+                  } else {
+                    this.createHitParticles(bullet.x, bullet.y, false);
+                    this.hp--;
+                    this.combo = 0;
+                    this.updateHUD();
+                    if (this.hp <= 0) this.gameOver();
+                    return true;
+                  }
+                }
+              }
+            } else {
+              const optionIndex = parseInt(bullet.key) - 1;
+              if (optionIndex >= 0 && optionIndex < enemy.options.length) {
+                if (bullet.key === enemy.answer) {
+                  this.createHitParticles(bullet.x, bullet.y, true);
+                  this.score += 10 * (this.combo + 1);
+                  this.combo++;
+                  this.maxCombo = Math.max(this.maxCombo, this.combo);
+                  this.destroyEnemy(enemy);
+                  return true;
+                } else {
+                  this.createHitParticles(bullet.x, bullet.y, false);
+                  this.hp--;
+                  this.combo = 0;
+                  this.updateHUD();
+                  if (this.hp <= 0) this.gameOver();
+                  return true;
+                }
+              }
+            }
+          }
+        }
+        return false;
+      },
+      
+      destroyEnemy(enemy) {
+        for (let i = 0; i < 20; i++) {
+          this.particles.push({
+            x: enemy.x + Math.random() * enemy.width,
+            y: enemy.y + Math.random() * enemy.height,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            color: '#44ff88',
+            size: Math.random() * 5 + 2,
+            lifetime: 30,
+            opacity: 1
+          });
+        }
+        this.enemies = this.enemies.filter(e => e !== enemy);
+      },
+      
+      createHitParticles(x, y, success) {
+        const color = success ? '#44ff88' : '#ff4444';
+        for (let i = 0; i < 10; i++) {
+          this.particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            color: color,
+            size: Math.random() * 4 + 2,
+            lifetime: 20,
+            opacity: 1
+          });
+        }
+      },
+      
+      updateHUD() {
+        const hpBar = document.getElementById('hpBar');
+        hpBar.innerHTML = '';
+        for (let i = 0; i < this.maxHp; i++) {
+          const dot = document.createElement('div');
+          dot.className = 'hpDot' + (i < this.hp ? '' : ' empty');
+          hpBar.appendChild(dot);
+        }
+        document.getElementById('score').textContent = `得分: ${this.score}`;
+        document.getElementById('level').textContent = `第${this.currentMajor}大关`;
+      },
+      
+      draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#0a0e27');
+        gradient.addColorStop(1, '#1a1f3a');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        for (let i = 0; i < 50; i++) {
+          ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.1})`;
+          ctx.beginPath();
+          ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        for (const enemy of this.enemies) {
+          ctx.save();
+          ctx.globalAlpha = enemy.opacity;
+          ctx.fillStyle = 'rgba(68, 102, 255, 0.2)';
+          ctx.strokeStyle = '#4466ff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(enemy.x - enemy.width / 2, enemy.y, enemy.width, enemy.height, 10);
+          ctx.fill();
+          ctx.stroke();
+          
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 16px Microsoft YaHei';
+          ctx.textAlign = 'center';
+          ctx.fillText(enemy.displayText, enemy.x, enemy.y + enemy.height / 2);
+          
+          if (enemy.type === 'choice' && enemy.options.length > 0) {
+            ctx.font = '14px Microsoft YaHei';
+            const optionsY = enemy.y + enemy.height / 2 + 30;
+            enemy.options.forEach((opt, idx) => {
+              const color = (idx + 1).toString() === enemy.answer ? '#44ff88' : '#fff';
+              ctx.fillStyle = color;
+              ctx.fillText(`${idx + 1}. ${opt}`, enemy.x, optionsY + idx * 25);
+            });
+          }
+          
+          ctx.restore();
+        }
+        
+        for (const bullet of this.bullets) {
+          ctx.save();
+          ctx.globalAlpha = bullet.success ? 0.5 : 1;
+          for (let i = 0; i < bullet.trail.length; i++) {
+            ctx.fillStyle = `rgba(68, 255, 136, ${(i + 1) / bullet.trail.length * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(bullet.trail[i].x, bullet.trail[i].y, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.fillStyle = bullet.color;
+          ctx.beginPath();
+          ctx.arc(bullet.x, bullet.y, bullet.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        
+        ctx.fillStyle = '#ff8844';
+        ctx.beginPath();
+        ctx.moveTo(this.player.x, this.player.y);
+        ctx.lineTo(this.player.x - 25, this.player.y + 30);
+        ctx.lineTo(this.player.x + 25, this.player.y + 30);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.fillStyle = '#ffcc44';
+        ctx.beginPath();
+        ctx.moveTo(this.player.x, this.player.y + 30);
+        ctx.lineTo(this.player.x - 15, this.player.y + 45);
+        ctx.lineTo(this.player.x + 15, this.player.y + 45);
+        ctx.closePath();
+        ctx.fill();
+        
+        for (const particle of this.particles) {
+          ctx.save();
+          ctx.globalAlpha = particle.opacity;
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        
+        for (const powerUp of this.powerUps) {
+          ctx.fillStyle = '#ffcc44';
+          ctx.beginPath();
+          ctx.arc(powerUp.x, powerUp.y, 15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#000';
+          ctx.font = 'bold 12px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(powerUp.type, powerUp.x, powerUp.y + 4);
+        }
+        
+        if (this.state === 'menu') {
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+      },
+      
+      gameLoop(timestamp = 0) {
+        const dt = timestamp - this.lastTime;
+        this.lastTime = timestamp;
+        
+        if (this.state === 'playing') {
+          this.update(dt);
+        }
+        this.draw();
+        
+        requestAnimationFrame((t) => this.gameLoop(t));
+      }
+    };
+    
+    Game.init();
+  </script>
+</body>
+</html>
